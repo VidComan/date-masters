@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2a1233">
+<title>Date Masters</title>
+<link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Bricolage+Grotesque:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6eefb;--bg2:#ead9f5;--ink:#2a1233;--mut:#7b6188;--card:#fff;--line:#e2cdf0;--acc:#e0357a;--gold:#f5b942;--shadow:0 10px 30px rgba(80,20,100,.18);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1d0b26;--bg2:#2e1240;--ink:#fbeefe;--mut:#b595c4;--card:#3a1a4d;--line:#51276b;--shadow:0 10px 30px rgba(0,0,0,.45)}}
+:root[data-theme="dark"]{--bg:#1d0b26;--bg2:#2e1240;--ink:#fbeefe;--mut:#b595c4;--card:#3a1a4d;--line:#51276b;--shadow:0 10px 30px rgba(0,0,0,.45)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:radial-gradient(120% 70% at 50% 0%,var(--bg2),var(--bg));color:var(--ink);font-family:'Bricolage Grotesque',system-ui,sans-serif;overflow:hidden}
+#app{height:100%;max-width:480px;margin:0 auto;display:flex;flex-direction:column;position:relative}
+h1{font-family:'Bagel Fat One','Bricolage Grotesque',sans-serif;font-weight:400;font-size:28px;margin:0;letter-spacing:.5px;background:linear-gradient(90deg,var(--acc),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+header{padding:14px 20px 4px;display:flex;justify-content:space-between;align-items:center}
+.sub{font-size:13px;color:var(--mut)}
+main{flex:1;min-height:0;position:relative}
+.view{position:absolute;inset:0;display:none;overflow-y:auto;padding:8px 20px 20px}
+.view.on{display:block}
+#v-boost.on{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;overflow:hidden}
+nav{display:flex;gap:6px;padding:8px 16px 12px;background:var(--bg);border-top:1px solid var(--line)}
+nav button{flex:1;border:0;background:none;color:var(--mut);font:600 14px 'Bricolage Grotesque',sans-serif;padding:10px;border-radius:14px;cursor:pointer}
+nav button.on{background:var(--card);color:var(--acc);box-shadow:var(--shadow)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+/* booster */
+.stage{position:relative;width:230px;height:320px;perspective:900px}
+.pack{position:absolute;inset:0;cursor:pointer;animation:float 3.2s ease-in-out infinite}
+.pack.shake{animation:shake .85s ease-in}
+.pack.gone{animation:none;opacity:0;transform:translateY(60px) scale(.9);transition:.5s}
+.foil,.pack .top{position:absolute;inset:0;border-radius:18px;background:linear-gradient(115deg,#ff4f9a,#ffb347 28%,#5be3c4 55%,#7a6bff 80%,#ff4f9a);background-size:250% 250%;animation:sheen 5s linear infinite;box-shadow:var(--shadow)}
+.foil{clip-path:polygon(0 17%,10% 20%,20% 16%,30% 20%,40% 16%,50% 20%,60% 16%,70% 20%,80% 16%,90% 20%,100% 17%,100% 100%,0 100%)}
+.pack .top{clip-path:polygon(0 0,100% 0,100% 17%,90% 20%,80% 16%,70% 20%,60% 16%,50% 20%,40% 16%,30% 20%,20% 16%,10% 20%,0 17%);transform-origin:0 0;transition:transform .7s cubic-bezier(.3,.7,.4,1),opacity .7s}
+.pack.tear .top{transform:translate(70px,-150px) rotate(35deg);opacity:0}
+.label{position:absolute;inset:26% 0 0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;text-shadow:0 2px 8px rgba(60,0,60,.5);pointer-events:none}
+.label b{font:400 34px/1 'Bagel Fat One',sans-serif;transform:rotate(-6deg)}
+.label span{font-size:46px;margin-top:10px}
+.label i{font-style:normal;font-size:13px;margin-top:10px;opacity:.95}
+.flash{position:absolute;inset:-60px;background:radial-gradient(circle,#fff,transparent 65%);opacity:0;pointer-events:none}
+.flash.go{animation:flash .7s ease-out}
+.spark{position:absolute;left:50%;top:50%;width:9px;height:9px;border-radius:50%;pointer-events:none;animation:burst .9s ease-out forwards}
+.card{position:absolute;inset:0;transform-style:preserve-3d;transform:translateY(50px) scale(.6) rotateY(180deg);opacity:0;transition:transform .9s cubic-bezier(.2,.8,.2,1),opacity .4s}
+.card.show{opacity:1;transform:none}
+.face{position:absolute;inset:0;border-radius:18px;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:var(--shadow)}
+.front{background:var(--card);border:4px solid var(--cc,var(--acc));padding:22px 18px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;transform:rotateY(180deg)}
+.card.flip .front{transform:rotateY(0)}
+.card.flip .back{transform:rotateY(-180deg)}
+.back{background:linear-gradient(135deg,#7a6bff,#e0357a);display:flex;align-items:center;justify-content:center;font-size:60px}
+.front .cat{background:var(--cc);color:#fff;font-weight:700;font-size:13px;padding:5px 12px;border-radius:99px}
+.front .em{font-size:64px}
+.front p{margin:0;font-size:20px;line-height:1.25;font-weight:700}
+.card.flip{transition:transform .9s cubic-bezier(.2,.8,.2,1)}
+.card .front,.card .back{transition:transform .7s}
+.actions{display:flex;gap:10px;min-height:48px}
+.btn{border:0;border-radius:16px;padding:14px 20px;font:700 16px 'Bricolage Grotesque',sans-serif;cursor:pointer;background:linear-gradient(90deg,var(--acc),#ff7a45);color:#fff;box-shadow:var(--shadow)}
+.btn.alt{background:var(--card);color:var(--ink);border:1px solid var(--line);box-shadow:none}
+.hint{font-size:14px;color:var(--mut);text-align:center;min-height:20px}
+
+/* collection */
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 12px;scrollbar-width:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:8px 14px;font:600 13px 'Bricolage Grotesque',sans-serif;cursor:pointer}
+.chip.on{background:var(--cc,var(--acc));border-color:transparent;color:#fff}
+.add{display:flex;flex-direction:column;gap:8px;background:var(--card);padding:14px;border-radius:18px;margin-bottom:14px;border:1px solid var(--line)}
+.add input,.add select{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:400 16px 'Bricolage Grotesque',sans-serif}
+.row{display:flex;gap:8px}
+ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+li{display:flex;align-items:center;gap:10px;background:var(--card);border-left:5px solid var(--cc);border-radius:14px;padding:10px 12px;font-size:15px}
+li .t{flex:1}
+li.done .t{text-decoration:line-through;opacity:.5}
+li button{border:0;background:none;font-size:20px;cursor:pointer;color:var(--mut);padding:6px}
+.empty{text-align:center;color:var(--mut);padding:30px 0}
+
+@keyframes float{50%{transform:translateY(-10px) rotate(1.5deg)}}
+@keyframes sheen{to{background-position:250% 250%}}
+@keyframes shake{0%,100%{transform:none}10%{transform:rotate(-4deg)}20%{transform:rotate(5deg) scale(1.03)}30%{transform:rotate(-6deg)}40%{transform:rotate(7deg) scale(1.06)}55%{transform:rotate(-8deg)}70%{transform:rotate(9deg) scale(1.09)}85%{transform:rotate(-9deg) scale(1.1)}}
+@keyframes flash{0%{opacity:0}30%{opacity:1}100%{opacity:0}}
+@keyframes burst{to{transform:translate(var(--x),var(--y)) scale(.2);opacity:0}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01s!important;transition-duration:.01s!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header><h1>Date Masters</h1><span class="sub" id="count"></span></header>
+  <main>
+    <section class="view on" id="v-boost">
+      <div class="stage" id="stage">
+        <div class="card" id="card" aria-live="polite">
+          <div class="face back">💘</div>
+          <div class="face front"><span class="cat" id="ccat"></span><span class="em" id="cem"></span><p id="ctxt"></p></div>
+        </div>
+        <div class="pack" id="pack" role="button" tabindex="0" aria-label="Ouvrir le booster">
+          <div class="foil"></div>
+          <div class="label"><b>DATE<br>MASTERS</b><span>💘</span><i>Booster d'idées</i></div>
+          <div class="top"></div>
+        </div>
+        <div class="flash" id="flash"></div>
+      </div>
+      <div class="hint" id="hint">Touche le booster pour l'ouvrir</div>
+      <div class="actions" id="actions"></div>
+    </section>
+    <section class="view" id="v-coll">
+      <div class="add">
+        <input id="newT" placeholder="Ta nouvelle idée de date…" maxlength="90">
+        <div class="row"><select id="newC"></select><button class="btn" id="addBtn">Ajouter</button></div>
+      </div>
+      <div class="chips" id="chips"></div>
+      <ul id="list"></ul>
+    </section>
+  </main>
+  <nav>
+    <button class="on" data-v="boost">Booster</button>
+    <button data-v="coll">Mes idées</button>
+  </nav>
+</div>
+<script>
+const CATS={bouge:['Ça bouge','🔥','#f0562f'],creatif:['Créatif','🎨','#9b4dff'],gourmand:['Gourmand','🍷','#d6246e'],calme:['Cocooning','😴','#2f8fe6'],culture:['Culture','🎭','#d99100'],nature:['Nature','🌿','#1fa86f'],fun:['Fun & décalé','😂','#ee6a10']};
+const DEF={
+bouge:["Escape game (en extérieur ou en VR)","Laser game ou paintball : l'un contre l'autre","Trampoline park ou accrobranche","Karting ou bubble foot","Initiation à l'escalade en salle de bloc","Cours de danse : salsa, bachata, rock, tango","Patinoire ou roller le long d'un canal","Paddle, kayak ou course de pédalos avec pari","Balade en tandem + pique-nique","Tir à l'arc ou lancer de hache","Course d'orientation en forêt","Minigolf","Bowling ou billard avec gages","Via ferrata ou saut en parachute"],
+creatif:["Atelier poterie (façon Ghost, mais en rigolant)","Cours de cuisine : pâtisserie, chocolat, sushi","Atelier parfum, bougie ou bijoux","Peinture et vin","Gravure sur cuir, soufflage de verre ou forge","Créer un jeu de société maison","Atelier cocktails : inventer sa recette","Customiser des vêtements ou des sneakers"],
+gourmand:["Dégustation : vin, fromage, chocolat, whisky, thé","Food tour : un plat par resto","Pique-nique chic avec panier","Restaurant dans le noir","Brunch autour du monde : un pays par plat","Concours de cuisine : même panier, chacun son plat","Cueillette de fruits, champignons ou huîtres","Marché + cuisine improvisée","Dîner insolite : bateau, tramway, bulle, cabane"],
+calme:["Spa, hammam ou bains nordiques","Massage en duo","Nuit en cabane, yourte ou bulle sous les étoiles","Ciné maison à thème (films de votre année de naissance)","Cinéma en plein air ou drive-in","Observer les étoiles ou aller au planétarium","Jeux vidéo coop : It Takes Two, Overcooked","Puzzle de 1000 pièces, playlist et thé","Lire un livre à voix haute à tour de rôle","Karaoké privé","Sieste en hamac puis café"],
+culture:["Théâtre d'impro ou stand-up dans un petit bar","Concert intimiste, jazz club ou opéra","Musée de nuit ou musée insolite","Exposition immersive","Visite guidée décalée : catacombes, street art, Paris by night","Chasse au trésor urbaine ou murder party","Cirque, magie ou comédie musicale","Château ou jardin (Versailles)","Brocante : l'objet le plus bizarre pour moins de 5 €"],
+nature:["Rando au lever ou coucher du soleil","Balade à cheval ou en calèche","Montgolfière","Bivouac ou camping sauvage","Baignade en lac ou plage hors saison","Ferme pédagogique ou câlins avec des alpagas","Week-end surprise : destination tirée au sort à 2h de route","Feu de camp avec marshmallows"],
+fun:["Défi photo : recréer des photos de couples célèbres","Refaire exactement votre premier rendez-vous","Date à l'aveugle : chacun prépare une surprise","Touristes dans votre propre ville","Blind test à deux","Tournoi : fléchettes, ping-pong, baby-foot, Mario Kart","Soirée « on s'habille bizarre » et on sort","Capsule temporelle : des lettres à ouvrir dans un an","Défi 5 € : le cadeau le plus drôle","Dîner des 36 questions pour tomber amoureux","Fête foraine : auto-tamponneuses et barbe à papa","Apprendre un truc ensemble : jonglage, magie, japonais"]};
+const KEY='datemasters_v1';
+let ideas=[],filter='all',current=null,busy=false;
+const $=id=>document.getElementById(id);
+function load(){try{const r=localStorage.getItem(KEY);if(r){ideas=JSON.parse(r);return}}catch(e){}
+ ideas=[];let n=0;for(const c in DEF)DEF[c].forEach(t=>ideas.push({id:'d'+n++,t,c,done:false}))}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(ideas))}catch(e){}}
+function updCount(){const left=ideas.filter(i=>!i.done).length;$('count').textContent=left+' idée'+(left>1?'s':'')+' à tenter'}
+
+/* nav */
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+ document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+ document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id==='v-'+b.dataset.v));
+ if(b.dataset.v==='coll')renderList()});
+
+/* booster */
+const pack=$('pack'),card=$('card');
+function resetStage(){card.className='card';pack.className='pack';$('actions').innerHTML='';$('hint').textContent='Touche le booster pour l\'ouvrir';busy=false}
+function sparks(col){const st=$('stage');for(let i=0;i<22;i++){const s=document.createElement('i');s.className='spark';const a=Math.random()*6.28,d=110+Math.random()*90;
+ s.style.setProperty('--x',Math.cos(a)*d+'px');s.style.setProperty('--y',Math.sin(a)*d+'px');s.style.background=['#ffd35c','#fff',col,'#5be3c4'][i%4];st.appendChild(s);setTimeout(()=>s.remove(),950)}}
+function open(){
+ if(busy)return;
+ let pool=ideas.filter(i=>!i.done);
+ if(!ideas.length){$('hint').textContent='Ajoute d\'abord des idées dans « Mes idées »';return}
+ if(!pool.length){ideas.forEach(i=>i.done=false);save();updCount();pool=ideas}
+ busy=true;current=pool[Math.floor(Math.random()*pool.length)];
+ const [lab,em,col]=CATS[current.c]||CATS.fun;
+ $('ccat').textContent=lab;$('cem').textContent=em;$('ctxt').textContent=current.t;card.style.setProperty('--cc',col);
+ $('hint').textContent='';
+ pack.classList.add('shake');
+ setTimeout(()=>{pack.classList.remove('shake');pack.classList.add('tear');$('flash').classList.add('go');sparks(col)},850);
+ setTimeout(()=>{pack.classList.add('gone');card.classList.add('show')},1300);
+ setTimeout(()=>card.classList.add('flip'),1900);
+ setTimeout(()=>{
+  $('hint').textContent='Ton prochain date est…';
+  $('actions').innerHTML='<button class="btn alt" id="again">Un autre booster</button><button class="btn" id="ok">On le fait !</button>';
+  $('again').onclick=()=>{$('flash').classList.remove('go');resetStage()};
+  $('ok').onclick=()=>{current.done=true;save();updCount();$('hint').textContent='Validé, bon date ! 💘';$('actions').innerHTML='<button class="btn alt" id="again2">Nouveau booster</button>';$('again2').onclick=()=>{$('flash').classList.remove('go');resetStage()}};
+ },2800);
+}
+pack.onclick=open;pack.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}};
+
+/* collection */
+function renderChips(){
+ const all=[['all','Toutes','#e0357a'],...Object.entries(CATS).map(([k,v])=>[k,v[1]+' '+v[0],v[2]])];
+ $('chips').innerHTML='';
+ all.forEach(([k,l,c])=>{const b=document.createElement('button');b.className='chip'+(filter===k?' on':'');b.textContent=l;b.style.setProperty('--cc',c);b.onclick=()=>{filter=k;renderChips();renderList()};$('chips').appendChild(b)})}
+function renderList(){
+ const ul=$('list');ul.innerHTML='';
+ const items=ideas.filter(i=>filter==='all'||i.c===filter);
+ if(!items.length){ul.innerHTML='<div class="empty">Rien ici pour l\'instant. Ajoute ta première idée !</div>';return}
+ items.forEach(i=>{const li=document.createElement('li');li.className=i.done?'done':'';li.style.setProperty('--cc',(CATS[i.c]||CATS.fun)[2]);
+  li.innerHTML='<span>'+(CATS[i.c]||CATS.fun)[1]+'</span><span class="t"></span><button aria-label="Fait / à faire">'+(i.done?'↩️':'✅')+'</button><button aria-label="Supprimer">🗑️</button>';
+  li.querySelector('.t').textContent=i.t;
+  const [b1,b2]=li.querySelectorAll('button');
+  b1.onclick=()=>{i.done=!i.done;save();updCount();renderList()};
+  b2.onclick=()=>{ideas=ideas.filter(x=>x!==i);save();updCount();renderList()};
+  ul.appendChild(li)})}
+$('newC').innerHTML=Object.entries(CATS).map(([k,v])=>'<option value="'+k+'">'+v[1]+' '+v[0]+'</option>').join('');
+function add(){const t=$('newT').value.trim();if(!t)return;ideas.unshift({id:'u'+Date.now(),t,c:$('newC').value,done:false});save();updCount();$('newT').value='';filter='all';renderChips();renderList()}
+$('addBtn').onclick=add;$('newT').onkeydown=e=>{if(e.key==='Enter')add()};
+
+load();updCount();renderChips();renderList();
+</script>
+</body>
+</html>
