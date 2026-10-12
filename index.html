@@ -116,11 +116,26 @@ li button{border:0;background:none;font-size:20px;cursor:pointer;color:var(--mut
 @keyframes flash{0%{opacity:0}30%{opacity:1}100%{opacity:0}}
 @keyframes burst{to{transform:translate(var(--x),var(--y)) scale(.2);opacity:0}}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01s!important;animation-iteration-count:1!important;transition-duration:.01s!important}}
+
+.actions .btn{padding:14px 16px}
+.sharebtn{width:52px;padding:14px 0!important}
+.mood{width:100%;justify-content:flex-start;padding:0 0 4px;margin:-6px 0 0}
+.stats{display:flex;gap:8px;margin-bottom:12px}
+.stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 4px;text-align:center}
+.stat b{display:block;font:400 24px 'Bagel Fat One',sans-serif;background:linear-gradient(90deg,var(--acc),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat span{font-size:11px;color:var(--mut)}
+.tools{display:flex;gap:8px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none}
+li .t{cursor:text}
+li small{display:block;font-size:11px;color:var(--mut)}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:14px;font-size:14px;display:flex;gap:14px;align-items:center;opacity:0;pointer-events:none;transition:.3s;z-index:60;max-width:90vw}
+.toast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast button{background:none;border:0;color:var(--gold);font-weight:700;font-size:14px;font-family:inherit;cursor:pointer}
 </style>
 </head>
 <body>
 <div id="stars"></div>
 <div class="flash" id="flash"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div id="app">
   <header><h1>Date Masters</h1><div style="display:flex;align-items:center"><span class="sub" id="count"></span><button class="snd" id="snd" aria-label="Son">🔊</button></div></header>
   <main>
@@ -141,8 +156,11 @@ li button{border:0;background:none;font-size:20px;cursor:pointer;color:var(--mut
       </div>
       <div class="hint" id="hint">Touche le booster pour l'ouvrir</div>
       <div class="actions" id="actions"></div>
+      <div class="chips mood" id="mood" aria-label="Filtrer les catégories du booster"></div>
     </section>
     <section class="view" id="v-coll">
+      <div class="stats" id="stats"></div>
+      <div class="tools"><button class="chip" id="shareList">📤 Partager mes idées</button><button class="chip" id="importList">📥 Importer</button><button class="chip" id="resetDone">↺ Tout remettre à tenter</button></div>
       <div class="add">
         <input id="newT" placeholder="Ta nouvelle idée de date…" maxlength="90">
         <div class="row"><select id="newC"></select><button class="btn" id="addBtn">Ajouter</button></div>
@@ -166,13 +184,28 @@ calme:["Spa, hammam ou bains nordiques","Massage en duo","Nuit en cabane, yourte
 culture:["Théâtre d'impro ou stand-up dans un petit bar","Concert intimiste, jazz club ou opéra","Musée de nuit ou musée insolite","Exposition immersive","Visite guidée décalée : catacombes, street art, Paris by night","Chasse au trésor urbaine ou murder party","Cirque, magie ou comédie musicale","Château ou jardin (Versailles)","Brocante : l'objet le plus bizarre pour moins de 5 €"],
 nature:["Rando au lever ou coucher du soleil","Balade à cheval ou en calèche","Montgolfière","Bivouac ou camping sauvage","Baignade en lac ou plage hors saison","Ferme pédagogique ou câlins avec des alpagas","Week-end surprise : destination tirée au sort à 2h de route","Feu de camp avec marshmallows"],
 fun:["Défi photo : recréer des photos de couples célèbres","Refaire exactement votre premier rendez-vous","Date à l'aveugle : chacun prépare une surprise","Touristes dans votre propre ville","Blind test à deux","Tournoi : fléchettes, ping-pong, baby-foot, Mario Kart","Soirée « on s'habille bizarre » et on sort","Capsule temporelle : des lettres à ouvrir dans un an","Défi 5 € : le cadeau le plus drôle","Dîner des 36 questions pour tomber amoureux","Fête foraine : auto-tamponneuses et barbe à papa","Apprendre un truc ensemble : jonglage, magie, japonais"]};
-const KEY='datemasters_v1';
-let ideas=[],filter='all',current=null,busy=false;
+const KEY='datemasters_v1',PK='dm_pref',SK='dm_stats';
+let ideas=[],filter='all',current=null,busy=false,pref={cats:[]},stats={draws:0,legend:0,done:0,pity:0};
 const $=id=>document.getElementById(id);
-function load(){try{const r=localStorage.getItem(KEY);if(r){ideas=JSON.parse(r);return}}catch(e){}
+function rd(k,d){try{const r=localStorage.getItem(k);return r?Object.assign(d,JSON.parse(r)):d}catch(e){return d}}
+function wr(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+function load(){pref=rd(PK,pref);stats=rd(SK,stats);if(!Array.isArray(pref.cats))pref.cats=[];
+ try{const r=localStorage.getItem(KEY);if(r){const a=JSON.parse(r);if(Array.isArray(a)&&a.every(x=>x&&typeof x.t==='string')){ideas=a;return}}}catch(e){}
  ideas=[];let n=0;for(const c in DEF)DEF[c].forEach(t=>ideas.push({id:'d'+n++,t,c,done:false}))}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(ideas))}catch(e){}}
-function updCount(){const left=ideas.filter(i=>!i.done).length;$('count').textContent=left+' idée'+(left>1?'s':'')+' à tenter'}
+function save(){wr(KEY,ideas)}
+function renderStats(){$('stats').innerHTML=[['🎴',stats.draws,'Tirages'],['⭐',stats.legend,'Légendaires'],['✅',stats.done,'Dates faits']].map(([e,n,l])=>'<div class="stat"><b>'+n+'</b><span>'+e+' '+l+'</span></div>').join('')}
+function updCount(){const left=ideas.filter(i=>!i.done).length;$('count').textContent=left+' idée'+(left>1?'s':'')+' à tenter';renderStats()}
+let tt;function toast(msg,label,fn){const t=$('toast');t.innerHTML='';const m=document.createElement('span');m.textContent=msg;t.appendChild(m);
+ if(label){const b=document.createElement('button');b.textContent=label;b.onclick=()=>{fn();t.classList.remove('on')};t.appendChild(b)}
+ t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),label?5000:2600)}
+async function shareText(text,url){try{if(navigator.share){await navigator.share(url?{title:'Date Masters',text,url}:{text});return}}catch(e){if(e&&e.name==='AbortError')return}
+ const full=url?text+' '+url:text;try{await navigator.clipboard.writeText(full);toast('Copié dans le presse-papiers 📋')}catch(e){prompt('Copie ce texte :',full)}}
+const enc=a=>btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(a))));
+const dec=c=>JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(c),ch=>ch.charCodeAt(0))));
+function mergeCode(raw){try{let c=raw.trim();const k=c.indexOf('#import=');if(k>=0)c=c.slice(k+8);c=decodeURIComponent(c);const arr=dec(c);if(!Array.isArray(arr))return -1;
+ const have=new Set(ideas.map(i=>i.t.toLowerCase()));let n=0;
+ arr.forEach(x=>{let t=x&&x[0];if(typeof t!=='string'||!t.trim())return;t=t.trim().slice(0,90);if(have.has(t.toLowerCase()))return;have.add(t.toLowerCase());ideas.unshift({id:'u'+Date.now()+'_'+n,t,c:CATS[x[1]]?x[1]:'fun',done:false});n++});
+ save();updCount();renderList();return n}catch(e){return -1}}
 
 /* nav */
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
@@ -189,7 +222,8 @@ const RAR=[
  {n:'Épique',rc:'#e056ff',g:'rgba(225,90,255,.7)',sp:60,dur:1450,q:9,fc:'#f2a6ff'},
  {n:'Légendaire',rc:'#ffc940',g:'rgba(255,205,70,.75)',sp:90,dur:1700,q:13,fc:'#ffe9a0'}];
 const roll=()=>{const r=Math.random();return r<.55?0:r<.82?1:r<.95?2:3};
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let wake=null;
+const sleep=ms=>new Promise(r=>{const t=setTimeout(go,ms);function go(){clearTimeout(t);wake=null;r()}wake=go});
 let AC=null,snd=true;try{snd=localStorage.getItem('dm_snd')!=='0'}catch(e){}
 function tone(f,t0,d,type,v,f2){if(!snd)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const t=AC.currentTime+t0,o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+d);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+d+.05)}catch(e){}}
 function chime(n){[523,659,784,1047,1319].slice(0,n).forEach((f,i)=>tone(f,i*.09,.55,'triangle',.09))}
@@ -203,15 +237,18 @@ function quake(q){const a=$('app');a.style.setProperty('--q',q+'px');a.classList
 function boom(R){const f=$('flash');f.style.setProperty('--fc',R.fc);f.classList.remove('go');void f.offsetWidth;f.classList.add('go')}
 async function open(){
  if(busy)return;
- let pool=ideas.filter(i=>!i.done);
- if(!ideas.length){$('hint').textContent='Ajoute d\'abord des idées dans « Mes idées »';return}
- if(!pool.length){ideas.forEach(i=>i.done=false);save();updCount();pool=ideas}
+ const scope=ideas.filter(i=>!pref.cats.length||pref.cats.includes(i.c));
+ if(!scope.length){$('hint').textContent=ideas.length?'Aucune idée dans cette catégorie':'Ajoute d\'abord des idées dans « Mes idées »';return}
+ let pool=scope.filter(i=>!i.done);
+ if(!pool.length){scope.forEach(i=>{i.done=false;delete i.doneAt});save();updCount();pool=scope;toast('Tout est fait ici ! Compteurs remis à zéro 🎉')}
  busy=true;current=pool[Math.floor(Math.random()*pool.length)];
- const rr=roll(),R=RAR[rr],[lab,em,col]=CATS[current.c]||CATS.fun,st=$('stage');
+ let rr=roll();if(stats.pity>=9&&rr<2)rr=2;
+ stats.draws++;stats.pity=rr>=2?0:stats.pity+1;if(rr===3)stats.legend++;wr(SK,stats);renderStats();
+ const R=RAR[rr],[lab,em,col]=CATS[current.c]||CATS.fun,st=$('stage');
  st.style.setProperty('--rc',R.rc);st.style.setProperty('--g',R.g);
  card.dataset.r=rr;card.style.setProperty('--cc',col);
- $('ccat').textContent=lab;$('cem').textContent=em;$('ctxt').textContent=current.t;$('crar').textContent='★'.repeat(rr+1)+' '+R.n;
- $('hint').textContent='';
+ $('ccat').textContent=lab;$('cem').textContent=em;$('ctxt').textContent=current.t;$('ctxt').style.fontSize=(current.t.length>70?16:current.t.length>48?17.5:19)+'px';$('crar').textContent='★'.repeat(rr+1)+' '+R.n;
+ $('hint').textContent='Touche pour passer l\'animation';
  pack.style.setProperty('--dur',R.dur+'ms');pack.classList.add('charge');$('rays').classList.add('on');
  tone(110,0,R.dur/1000,'sawtooth',.05,560);vib([30,60,30,60,40,50,60,40,90]);
  await sleep(R.dur);
@@ -225,9 +262,11 @@ async function open(){
  if(rr<2)$('rays').classList.remove('on');
  await sleep(900);
  $('hint').textContent=R.n+' ! Ton prochain date est…';
- $('actions').innerHTML='<button class="btn alt" id="again">Un autre booster</button><button class="btn" id="ok">On le fait !</button>';
- $('again').onclick=resetStage;
- $('ok').onclick=()=>{current.done=true;save();updCount();sparks(R,col,30);chime(5);$('hint').textContent='Validé, bon date ! 💘';$('actions').innerHTML='<button class="btn alt" id="again2">Nouveau booster</button>';$('again2').onclick=resetStage};
+ const msg='💘 Date Masters m\'a tiré une carte '+R.n+' : « '+current.t+' » — ça te dit ?';
+ $('actions').innerHTML='<button class="btn alt" id="again">Un autre booster</button><button class="btn" id="ok">On le fait !</button><button class="btn alt sharebtn" id="shareCard" aria-label="Partager la carte">📤</button>';
+ $('again').onclick=resetStage;$('shareCard').onclick=()=>shareText(msg);
+ $('ok').onclick=()=>{current.done=true;current.doneAt=Date.now();stats.done++;wr(SK,stats);save();updCount();sparks(R,col,30);chime(5);$('hint').textContent='Validé, bon date ! 💘';
+  $('actions').innerHTML='<button class="btn alt" id="again2">Nouveau booster</button><button class="btn alt sharebtn" id="shareCard2" aria-label="Partager">📤</button>';$('again2').onclick=resetStage;$('shareCard2').onclick=()=>shareText(msg)};
 }
 pack.onclick=open;pack.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}};
 
@@ -235,7 +274,7 @@ pack.onclick=open;pack.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventD
 function tiltTo(e){if(!card.classList.contains('flip'))return;const b=card.getBoundingClientRect(),x=Math.min(1,Math.max(0,(e.clientX-b.left)/b.width)),y=Math.min(1,Math.max(0,(e.clientY-b.top)/b.height));
  card.style.setProperty('--rx',(.5-y)*30+'deg');card.style.setProperty('--ry',(x-.5)*30+'deg');card.style.setProperty('--mx',x*100+'%');card.style.setProperty('--my',y*100+'%')}
 function untilt(){['--rx','--ry','--mx','--my'].forEach(k=>card.style.removeProperty(k))}
-const stg=$('stage');stg.addEventListener('pointermove',tiltTo);stg.addEventListener('pointerdown',tiltTo);stg.addEventListener('pointerleave',untilt);stg.addEventListener('pointerup',e=>{if(e.pointerType!=='mouse')untilt()});
+const stg=$('stage');stg.addEventListener('pointermove',tiltTo);stg.addEventListener('pointerdown',tiltTo);stg.addEventListener('pointerdown',()=>{if(busy&&wake)wake()});stg.addEventListener('pointerleave',untilt);stg.addEventListener('pointerup',e=>{if(e.pointerType!=='mouse')untilt()});
 /* étoiles d'ambiance */
 (function(){const w=$('stars');for(let i=0;i<26;i++){const e=document.createElement('i'),z=3+Math.random()*4;e.style.cssText='left:'+Math.random()*100+'%;top:'+Math.random()*100+'%;width:'+z+'px;height:'+z+'px;animation-delay:'+Math.random()*3+'s;animation-duration:'+(2.5+Math.random()*3)+'s';w.appendChild(e)}})();
 
@@ -249,17 +288,31 @@ function renderList(){
  const items=ideas.filter(i=>filter==='all'||i.c===filter);
  if(!items.length){ul.innerHTML='<div class="empty">Rien ici pour l\'instant. Ajoute ta première idée !</div>';return}
  items.forEach(i=>{const li=document.createElement('li');li.className=i.done?'done':'';li.style.setProperty('--cc',(CATS[i.c]||CATS.fun)[2]);
-  li.innerHTML='<span>'+(CATS[i.c]||CATS.fun)[1]+'</span><span class="t"></span><button aria-label="Fait / à faire">'+(i.done?'↩️':'✅')+'</button><button aria-label="Supprimer">🗑️</button>';
-  li.querySelector('.t').textContent=i.t;
+  li.innerHTML='<span>'+(CATS[i.c]||CATS.fun)[1]+'</span><span class="t" role="button" tabindex="0" title="Toucher pour modifier"></span><button aria-label="Fait / à faire">'+(i.done?'↩️':'✅')+'</button><button aria-label="Supprimer">🗑️</button>';
+  const t=li.querySelector('.t');t.textContent=i.t;
+  if(i.done&&i.doneAt){const sm=document.createElement('small');sm.textContent='Fait le '+new Date(i.doneAt).toLocaleDateString('fr-FR');t.appendChild(sm)}
+  const edit=()=>{const v=prompt('Modifier l\'idée',i.t);if(v&&v.trim()){i.t=v.trim().slice(0,90);save();renderList()}};
+  t.onclick=edit;t.onkeydown=e=>{if(e.key==='Enter')edit()};
   const [b1,b2]=li.querySelectorAll('button');
-  b1.onclick=()=>{i.done=!i.done;save();updCount();renderList()};
-  b2.onclick=()=>{ideas=ideas.filter(x=>x!==i);save();updCount();renderList()};
+  b1.onclick=()=>{i.done=!i.done;if(i.done){i.doneAt=Date.now();stats.done++}else{delete i.doneAt;stats.done=Math.max(0,stats.done-1)}wr(SK,stats);save();updCount();renderList()};
+  b2.onclick=()=>{const idx=ideas.indexOf(i);ideas.splice(idx,1);save();updCount();renderList();toast('Idée supprimée','Annuler',()=>{ideas.splice(Math.min(idx,ideas.length),0,i);save();updCount();renderList()})};
   ul.appendChild(li)})}
+function renderMood(){const m=$('mood');m.innerHTML='';
+ const mk=(k,l,c,on)=>{const b=document.createElement('button');b.className='chip'+(on?' on':'');b.textContent=l;b.style.setProperty('--cc',c);b.setAttribute('aria-pressed',on);
+  b.onclick=()=>{if(busy)return;pref.cats=k==='all'?[]:pref.cats.includes(k)?pref.cats.filter(x=>x!==k):[...pref.cats,k];wr(PK,pref);renderMood()};m.appendChild(b)};
+ mk('all','Tout','#e0357a',!pref.cats.length);Object.entries(CATS).forEach(([k,v])=>mk(k,v[1]+' '+v[0],v[2],pref.cats.includes(k)))}
+$('shareList').onclick=()=>{const mine=ideas.filter(i=>String(i.id).startsWith('u'));if(!mine.length){toast('Ajoute d\'abord tes propres idées pour les partager');return}
+ const url=location.href.split('#')[0]+'#import='+encodeURIComponent(enc(mine.map(i=>[i.t,i.c])));
+ shareText('💘 Date Masters : '+mine.length+' idée'+(mine.length>1?'s':'')+' de date pour toi !',url)};
+$('importList').onclick=()=>{const v=prompt('Colle ici le lien ou le code reçu :');if(!v)return;const n=mergeCode(v);toast(n<0?'Code invalide 😕':n+' idée'+(n>1?'s':'')+' ajoutée'+(n>1?'s':''))};
+$('resetDone').onclick=()=>{if(!ideas.some(i=>i.done)){toast('Rien à remettre à zéro');return}if(confirm('Remettre toutes les idées comme « à tenter » ?')){ideas.forEach(i=>{i.done=false;delete i.doneAt});save();updCount();renderList()}};
 $('newC').innerHTML=Object.entries(CATS).map(([k,v])=>'<option value="'+k+'">'+v[1]+' '+v[0]+'</option>').join('');
 function add(){const t=$('newT').value.trim();if(!t)return;ideas.unshift({id:'u'+Date.now(),t,c:$('newC').value,done:false});save();updCount();$('newT').value='';filter='all';renderChips();renderList()}
 $('addBtn').onclick=add;$('newT').onkeydown=e=>{if(e.key==='Enter')add()};
 
-load();updCount();renderChips();renderList();
+load();updCount();renderChips();renderList();renderMood();
+if(location.hash.startsWith('#import=')){const raw=location.hash;history.replaceState(null,'',location.pathname+location.search);
+ setTimeout(()=>{if(confirm('Ajouter les idées partagées à ta liste ?')){const n=mergeCode(raw);toast(n<0?'Lien invalide 😕':n+' idée'+(n>1?'s':'')+' ajoutée'+(n>1?'s':''))}},400)}
 
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
