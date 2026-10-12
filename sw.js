@@ -1,6 +1,6 @@
 // Service worker - Date Masters
 // Pour publier une mise à jour : change simplement le numéro de version ci-dessous.
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = 'date-masters-' + VERSION;
 const FONT_CACHE = 'date-masters-fonts';
 
